@@ -1,20 +1,27 @@
-stages:
-  - build
-  - test
+name: CI Demo
 
-build-job:
-  stage: build
-  tags:
-    - windows
-  script:
-    - echo "Compiling code..."
-    - echo "Build successful!"
+on:
+  push:
+    branches: [main]        # đổi thành 'master' nếu repo dùng tên đó
 
-test-job:
-  stage: test
-  tags:
-    - windows
-    - shell
-  script:
-    - echo "Running tests..."
-    - echo "All tests passed!"
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build Job
+        run: |
+          echo "Compiling code..."
+          echo "Build successful!"
+
+  test:
+    runs-on: windows-latest
+    needs: build            # bảo đảm build xong mới test
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Test Job
+        run: |
+          echo "Running tests..."
+          echo "All tests passed!"
