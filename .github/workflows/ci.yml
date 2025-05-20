@@ -4,12 +4,12 @@ on:
   push:
     branches: [main]            # chạy khi push vào nhánh main
   pull_request:
-    branches: [main]
+    branches: [main]            # chạy khi tạo PR vào main
 
 jobs:
   # ---------------- CI ----------------
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest     # đổi ubuntu-latest nếu dự án Linux
     steps:
       - uses: actions/checkout@v3
 
@@ -18,14 +18,18 @@ jobs:
           echo "Compiling code..."
           echo "Build successful!"
 
-      - name: Upload site files
+      # nếu cần gói artefact build để deploy
+      - name: Zip build
+        run: Compress-Archive -Path . -Destination build.zip
+
+      - name: Upload artefact
         uses: actions/upload-artifact@v4
         with:
-          name: site
-          path: .               # upload toàn bộ nội dung repo (gồm index.html)
+          name: build
+          path: build.zip
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     needs: build
     steps:
       - uses: actions/checkout@v3
@@ -39,14 +43,17 @@ jobs:
   deploy:
     runs-on: windows-latest
     needs: test
+    permissions:
+      contents: write            # cho phép tạo Release
     steps:
-      - name: Download site artifact
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
-          name: site
+          name: build            # tải build.zip về
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: .        # thư mục chứa index.html
+          tag: v${{ github.run_number }}
+          name: "Build ${{ github.run_number }}"
+          artifacts: build.zip
+          generateReleaseNotes: true
