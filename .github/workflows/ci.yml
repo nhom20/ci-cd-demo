@@ -2,13 +2,14 @@ name: CI-CD Demo
 
 on:
   push:
-    branches: [main]
+    branches: [main]            # chạy khi push vào nhánh main
   pull_request:
-    branches: [main]
+    branches: [main]            # chạy khi tạo PR vào main
 
 jobs:
+  # ---------------- CI ----------------
   build:
-    runs-on: windows-latest
+    runs-on: windows-latest     # đổi ubuntu-latest nếu dự án Linux
     steps:
       - uses: actions/checkout@v3
 
@@ -16,6 +17,16 @@ jobs:
         run: |
           echo "Compiling code..."
           echo "Build successful!"
+
+      # nếu cần gói artefact build để deploy
+      - name: Zip build
+        run: Compress-Archive -Path . -Destination build.zip
+
+      - name: Upload artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: build.zip
 
   test:
     runs-on: windows-latest
@@ -28,21 +39,21 @@ jobs:
           echo "Running tests..."
           echo "All tests passed!"
 
+  # ---------------- CD ----------------
   deploy:
     runs-on: windows-latest
     needs: test
+    permissions:
+      contents: write            # cho phép tạo Release
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v4
+        with:
+          name: build            # tải build.zip về
 
-      - name: Copy index.html to docs/
-        run: |
-          mkdir docs
-          copy index.html docs\index.html
-
-      - name: Commit and push docs to main
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add docs
-          git commit -m "Deploy to GitHub Pages"
-          git push origin main
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v${{ github.run_number }}
+          name: "Build ${{ github.run_number }}"
+          artifacts: build.zip
+          generateReleaseNotes: true
